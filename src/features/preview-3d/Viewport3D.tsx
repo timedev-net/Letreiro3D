@@ -119,8 +119,8 @@ export function Viewport3D() {
 
     return [
       spec.mirror ? centerX : -centerX,
-      -centerY,
       0,
+      centerY,
     ] as const
   }, [shapeDocument, spec.mirror])
 
