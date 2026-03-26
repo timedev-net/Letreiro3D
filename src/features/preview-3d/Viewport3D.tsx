@@ -126,22 +126,26 @@ export function Viewport3D() {
 
   return (
     <div className="relative h-full overflow-hidden rounded-[calc(var(--radius)+6px)] border border-[var(--border)] bg-[#050913]">
-      <div className="panel-grid absolute inset-0 opacity-25" />
       <Canvas
         camera={{ position: [180, 180, 180], fov: 34 }}
         gl={{ antialias: true }}
       >
-        <color attach="background" args={['#070b14']} />
+        <color attach="background" args={['#060914']} />
         <ambientLight intensity={0.9} />
         <directionalLight position={[160, 220, 140]} intensity={2.4} />
         <directionalLight position={[-120, 80, -60]} intensity={0.9} color="#9bc0ff" />
         <Grid
-          args={[800, 800]}
-          sectionColor="#243763"
-          cellColor="#121d31"
-          fadeDistance={900}
+          args={[1400, 1400]}
+          cellColor="#111d36"
+          sectionColor="#27457e"
+          cellSize={8}
+          sectionSize={72}
+          cellThickness={0.38}
+          sectionThickness={1.25}
+          fadeDistance={1800}
+          fadeStrength={1.1}
           infiniteGrid
-          position={[0, -0.2, 0]}
+          position={[0, 0, 0]}
         />
         <Bounds margin={1.25}>
           <AutoFitOnSourceChange sourceKey={sourceKey} hasGeometry={hasGeometry} />
