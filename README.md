@@ -1,73 +1,82 @@
-# React + TypeScript + Vite
+# Letreiro3D
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web para gerar letreiros 3D a partir de texto ou arquivos SVG, com preview em tempo real e exportação para fabricação.
 
-Currently, two official plugins are available:
+## O que o projeto faz
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Gera letreiros 3D a partir de texto com fontes internas ou fontes enviadas em `TTF/OTF`
+- Importa arquivos `SVG` preservando escala física quando disponível
+- Exibe preview 3D interativo no navegador com `three.js`
+- Permite ajustar base, altura de parede, espessura, folga e espessura do acrílico
+- Exporta `STL` do corpo, `STL` do acrílico, `STL` por letra e `DXF` dos contornos
 
-## React Compiler
+## Tecnologias principais
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `React`
+- `Vite`
+- `TypeScript`
+- `Tailwind CSS`
+- `three.js`
+- `@react-three/fiber`
+- `@react-three/drei`
+- `zustand`
+- `opentype.js`
+- `clipper-lib`
+- `jszip`
+- `zod`
 
-## Expanding the ESLint configuration
+## Requisitos
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `Node.js` 20+ recomendado
+- `pnpm` como gerenciador de pacotes
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Como rodar
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Para gerar a versão de produção:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm build
+pnpm preview
 ```
+
+## Scripts disponíveis
+
+- `pnpm dev`: inicia o ambiente de desenvolvimento
+- `pnpm build`: gera o build de produção
+- `pnpm lint`: executa a checagem de lint
+- `pnpm preview`: abre o build localmente para conferência
+
+## Estrutura principal
+
+```text
+src/
+  app/
+  components/
+  core/
+  features/
+  store/
+  types/
+public/
+  examples/
+  fonts/
+```
+
+## Fluxo do app
+
+1. O usuário escolhe a origem: texto ou SVG.
+2. A entrada é convertida para um documento vetorial normalizado em milímetros.
+3. O gerador cria corpo, paredes e face acrílica.
+4. O preview 3D é atualizado no navegador.
+5. O projeto pode ser exportado em `STL` e `DXF`.
+
+## Observações
+
+- O projeto funciona totalmente no navegador para o MVP atual.
+- O estado do projeto é salvo localmente no navegador.
+- Fontes enviadas pelo usuário não são persistidas após recarregar a página.
+

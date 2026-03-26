@@ -93,7 +93,7 @@ export default function App() {
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--primary-2)]">
                 <Box className="h-3.5 w-3.5" />
-                Sign Forge MVP
+                Letreiro3D
               </div>
               <div>
                 <h1 className="m-0 text-4xl font-semibold tracking-[-0.04em] text-white md:text-5xl">
