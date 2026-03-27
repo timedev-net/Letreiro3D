@@ -50,6 +50,19 @@ pnpm preview
 - `pnpm build`: gera o build de produção
 - `pnpm lint`: executa a checagem de lint
 - `pnpm preview`: abre o build localmente para conferência
+- `pnpm test:e2e`: roda a suíte Playwright de regressão geométrica e de preview
+
+## Testes de regressão
+
+- A suíte `Playwright` cobre as letras com contraformas, para evitar regressões em `A`, `B`, `R`, `D` e `8`
+- Há validação equivalente para um `SVG` com vazado interno
+- O fluxo de UI também valida preview gerado, toggle de face e estabilidade do espelhamento
+
+Para rodar os testes:
+
+```bash
+pnpm test:e2e
+```
 
 ## Estrutura principal
 
@@ -79,4 +92,3 @@ public/
 - O projeto funciona totalmente no navegador para o MVP atual.
 - O estado do projeto é salvo localmente no navegador.
 - Fontes enviadas pelo usuário não são persistidas após recarregar a página.
-

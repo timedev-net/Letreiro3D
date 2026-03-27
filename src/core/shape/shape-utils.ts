@@ -1,4 +1,4 @@
-import { Box2, Shape, ShapePath, Vector2 } from 'three'
+import { Box2, Shape, ShapePath, ShapeUtils, Vector2 } from 'three'
 import type { ShapeDocument, ShapeDocumentMetadata, ShapeGroup } from '../../types/sign'
 
 const EPSILON = 1e-4
@@ -12,6 +12,14 @@ export function getShapePoints(shape: Shape, curveSegments: number) {
   const shapePoints = shape.getPoints(curveSegments)
   const holePoints = shape.holes.map((hole) => hole.getPoints(curveSegments))
   return { shapePoints, holePoints }
+}
+
+function ensureClockwise(points: Vector2[]) {
+  return ShapeUtils.isClockWise(points) ? points : [...points].reverse()
+}
+
+function ensureCounterClockwise(points: Vector2[]) {
+  return ShapeUtils.isClockWise(points) ? [...points].reverse() : points
 }
 
 function dedupeLoop(points: Vector2[]) {
@@ -71,10 +79,10 @@ export function getShapeBounds(shapes: Shape[], curveSegments = 18) {
 }
 
 export function cloneShape(shape: Shape) {
-  const next = new Shape(shape.getPoints())
+  const next = new Shape(ensureClockwise(shape.getPoints()))
   next.holes = shape.holes.map((hole) => {
     const path = new Shape()
-    const points = hole.getPoints()
+    const points = ensureCounterClockwise(hole.getPoints())
     if (points.length > 0) {
       path.moveTo(points[0].x, points[0].y)
       for (let index = 1; index < points.length; index += 1) {
@@ -100,7 +108,7 @@ export function transformShapes(
       return []
     }
 
-    const next = new Shape(basePoints)
+    const next = new Shape(ensureClockwise(basePoints))
     next.holes = shape.holes.flatMap((hole) => {
       const holePoints = sanitizeLoop(
         hole.getPoints().map((point) => transform(point.clone())),
@@ -108,7 +116,7 @@ export function transformShapes(
       if (!holePoints) {
         return []
       }
-      const holeShape = new Shape(holePoints)
+      const holeShape = new Shape(ensureCounterClockwise(holePoints))
       holeShape.closePath()
       return [holeShape]
     })
