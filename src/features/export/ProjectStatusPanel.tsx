@@ -4,6 +4,7 @@ import { useSignStore } from '../../store/sign-store'
 
 export function ProjectStatusPanel() {
   const shapeDocument = useSignStore((state) => state.shapeDocument)
+  const generatedParts = useSignStore((state) => state.generatedParts)
   const activeSource = useSignStore((state) => state.activeSource)
   const hasRestoredSession = useSignStore((state) => state.hasRestoredSession)
   const resetProject = useSignStore((state) => state.resetProject)
@@ -49,6 +50,12 @@ export function ProjectStatusPanel() {
             {metadata.groupCount} grupos · {metadata.contourCount} loops
           </div>
         </div>
+        <div className="rounded-2xl border border-[var(--border)] bg-white/4 p-3">
+          <div className="text-xs uppercase tracking-[0.16em] text-[var(--muted-2)]">Peças 3D</div>
+          <div className="mt-2 text-sm text-white">
+            {generatedParts?.parts.length ?? 0} peças geradas
+          </div>
+        </div>
       </div>
 
       {activeSource === 'svg' ? (
@@ -68,9 +75,9 @@ export function ProjectStatusPanel() {
         </div>
       ) : null}
 
-      {metadata.warnings.length ? (
+      {[...metadata.warnings, ...(generatedParts?.warnings ?? [])].length ? (
         <div className="space-y-2">
-          {metadata.warnings.map((warning) => (
+          {[...new Set([...metadata.warnings, ...(generatedParts?.warnings ?? [])])].map((warning) => (
             <div
               key={warning}
               className="flex gap-2 rounded-2xl border border-[rgba(241,154,53,0.35)] bg-[rgba(241,154,53,0.08)] p-3 text-sm text-[var(--primary-2)]"

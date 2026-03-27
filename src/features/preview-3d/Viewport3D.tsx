@@ -1,25 +1,41 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Bounds, Grid, OrbitControls, useBounds } from '@react-three/drei'
-import { Box3, BufferGeometry, Color, MeshStandardMaterial } from 'three'
+import { Box3, BufferGeometry, Color, MeshStandardMaterial, Vector3 } from 'three'
+import type { GeneratedPart } from '../../types/sign'
 import { useSignStore } from '../../store/sign-store'
 
 const bodyMaterial = new MeshStandardMaterial({ color: new Color('#cfd6df') })
-const acrylicMaterial = new MeshStandardMaterial({
-  color: new Color('#66c1ff'),
-  opacity: 0.55,
+const faceMaterial = new MeshStandardMaterial({
+  color: new Color('#ecf3ff'),
+  opacity: 0.9,
   transparent: true,
 })
-const lettersMaterial = new MeshStandardMaterial({ color: new Color('#f19a35') })
+const insertMaterial = new MeshStandardMaterial({ color: new Color('#f19a35') })
+const EMPTY_PARTS: GeneratedPart[] = []
 
 function GeometryMesh({
   geometry,
   material,
+  position,
 }: {
   geometry: BufferGeometry
   material: MeshStandardMaterial
+  position?: [number, number, number]
 }) {
-  return <mesh geometry={geometry} material={material} />
+  return <mesh geometry={geometry} material={material} position={position} />
+}
+
+function getMaterialForPart(part: GeneratedPart) {
+  switch (part.role) {
+    case 'face':
+      return faceMaterial
+    case 'insert':
+      return insertMaterial
+    case 'body':
+    default:
+      return bodyMaterial
+  }
 }
 
 function AutoFitOnSourceChange({
@@ -59,29 +75,31 @@ export function Viewport3D() {
   const svgSource = useSignStore((state) => state.svgSource)
   const spec = useSignStore((state) => state.spec)
 
+  const parts = generatedParts?.parts ?? EMPTY_PARTS
+
+  const visibleParts = useMemo(() => {
+    return parts.filter((part) => visibility[part.role])
+  }, [parts, visibility])
+
   const bounds = useMemo(() => {
     const box = new Box3()
-    ;[
-      generatedParts?.bodyGeometry,
-      generatedParts?.acrylicGeometry,
-      ...(generatedParts?.letterGeometries ?? []),
-    ]
-      .filter(Boolean)
-      .forEach((geometry) => {
-        const casted = geometry as BufferGeometry
-        casted.computeBoundingBox()
-        if (casted.boundingBox) {
-          box.union(casted.boundingBox)
-        }
-      })
+    visibleParts.forEach((part) => {
+      part.geometry.computeBoundingBox()
+      if (part.geometry.boundingBox) {
+        const translated = part.geometry.boundingBox.clone().translate(
+          new Vector3(
+            part.assemblyOffset[0] * spec.assembly.explodeDistanceMm,
+            part.assemblyOffset[1] * spec.assembly.explodeDistanceMm,
+            part.assemblyOffset[2] * spec.assembly.explodeDistanceMm,
+          ),
+        )
+        box.union(translated)
+      }
+    })
     return box
-  }, [generatedParts])
+  }, [spec.assembly.explodeDistanceMm, visibleParts])
 
-  const hasGeometry = Boolean(
-    generatedParts?.bodyGeometry
-      || generatedParts?.acrylicGeometry
-      || generatedParts?.letterGeometries.length,
-  )
+  const hasGeometry = parts.length > 0
 
   const sourceKey = useMemo(() => {
     if (activeSource === 'text') {
@@ -112,10 +130,8 @@ export function Viewport3D() {
       return [0, 0, 0] as const
     }
 
-    const centerX =
-      shapeDocument.boundsMm.minX + shapeDocument.boundsMm.width / 2
-    const centerY =
-      shapeDocument.boundsMm.minY + shapeDocument.boundsMm.height / 2
+    const centerX = shapeDocument.boundsMm.minX + shapeDocument.boundsMm.width / 2
+    const centerY = shapeDocument.boundsMm.minY + shapeDocument.boundsMm.height / 2
 
     return [
       spec.mirror ? centerX : -centerX,
@@ -150,27 +166,18 @@ export function Viewport3D() {
         <Bounds margin={1.25}>
           <AutoFitOnSourceChange sourceKey={sourceKey} hasGeometry={hasGeometry} />
           <group position={previewPosition} rotation={[-Math.PI / 2, 0, 0]}>
-            {visibility.body && generatedParts?.bodyGeometry ? (
+            {visibleParts.map((part) => (
               <GeometryMesh
-                geometry={generatedParts.bodyGeometry}
-                material={bodyMaterial}
+                key={part.id}
+                geometry={part.geometry}
+                material={getMaterialForPart(part)}
+                position={[
+                  part.assemblyOffset[0] * spec.assembly.explodeDistanceMm,
+                  part.assemblyOffset[1] * spec.assembly.explodeDistanceMm,
+                  part.assemblyOffset[2] * spec.assembly.explodeDistanceMm,
+                ]}
               />
-            ) : null}
-            {visibility.acrylic && generatedParts?.acrylicGeometry ? (
-              <GeometryMesh
-                geometry={generatedParts.acrylicGeometry}
-                material={acrylicMaterial}
-              />
-            ) : null}
-            {visibility.letters && generatedParts?.letterGeometries.length
-              ? generatedParts.letterGeometries.map((geometry, index) => (
-                  <GeometryMesh
-                    key={`letter-${index}`}
-                    geometry={geometry}
-                    material={lettersMaterial}
-                  />
-                ))
-              : null}
+            ))}
           </group>
         </Bounds>
         <OrbitControls makeDefault enableDamping />
@@ -189,6 +196,7 @@ export function Viewport3D() {
               {generatedParts.metricsMm.height.toFixed(1)} mm | Z{' '}
               {generatedParts.metricsMm.depth.toFixed(1)} mm
             </div>
+            <div>{generatedParts.parts.length} peça(s) ativas no projeto</div>
           </div>
         ) : (
           <div className="text-[var(--muted)]">
@@ -199,7 +207,7 @@ export function Viewport3D() {
 
       {!bounds.isEmpty() ? (
         <div className="absolute bottom-4 right-4 rounded-2xl border border-[var(--border)] bg-[var(--background-panel)] px-4 py-3 text-xs text-[var(--muted)] backdrop-blur">
-          Caixa 3D centralizada automaticamente
+          Preview montado com slider de montagem
         </div>
       ) : null}
     </div>

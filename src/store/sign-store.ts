@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
+  DeepPartial,
   GeneratedParts,
   GeneratorVisibility,
   ShapeDocument,
@@ -12,12 +13,43 @@ import type {
 
 const STORAGE_KEY = 'sign-forge-project-v1'
 
+const notchSchema = z.object({
+  enabled: z.boolean(),
+  widthMm: z.number().min(2).max(80),
+  depthMm: z.number().min(0.4).max(20),
+  clearanceMm: z.number().min(0).max(3),
+  edgeOffsetMm: z.number().min(0).max(80),
+  distribution: z.enum(['auto', 'manual-count']),
+  count: z.number().int().min(2).max(24),
+  minSpacingMm: z.number().min(2).max(120),
+})
+
 const signSpecSchema = z.object({
-  baseDepthMm: z.number().min(0.4).max(40),
-  wallHeightMm: z.number().min(5).max(120),
-  wallThicknessMm: z.number().min(0.6).max(20),
-  acrylicThicknessMm: z.number().min(0.5).max(15),
-  clearanceMm: z.number().min(0).max(6),
+  styleId: z.enum([
+    'face-acrilico-fundo-impresso',
+    'face-acrilico-fundo-vazado',
+    'face-acrilico-parede-interna-dupla',
+    'face-acrilico-back-fit',
+  ]),
+  outerWall: z.object({
+    baseDepthMm: z.number().min(0.4).max(40),
+    heightMm: z.number().min(5).max(120),
+    thicknessMm: z.number().min(0.6).max(20),
+  }),
+  innerWall: z.object({
+    heightMm: z.number().min(0).max(120),
+    thicknessMm: z.number().min(0).max(20),
+  }),
+  face: z.object({
+    thicknessMm: z.number().min(0.5).max(15),
+  }),
+  fitment: z.object({
+    clearanceMm: z.number().min(0).max(6),
+    notch: notchSchema,
+  }),
+  assembly: z.object({
+    explodeDistanceMm: z.number().min(0).max(120),
+  }),
   mirror: z.boolean(),
   splitByLetter: z.boolean(),
   meshQuality: z.enum(['draft', 'normal', 'high']),
@@ -39,11 +71,35 @@ const defaultSvgSource: SvgSource = {
 }
 
 const defaultSpec: SignSpec = {
-  baseDepthMm: 3,
-  wallHeightMm: 35,
-  wallThicknessMm: 2,
-  acrylicThicknessMm: 3,
-  clearanceMm: 0.4,
+  styleId: 'face-acrilico-fundo-impresso',
+  outerWall: {
+    baseDepthMm: 3,
+    heightMm: 35,
+    thicknessMm: 2,
+  },
+  innerWall: {
+    heightMm: 30,
+    thicknessMm: 1.2,
+  },
+  face: {
+    thicknessMm: 3,
+  },
+  fitment: {
+    clearanceMm: 0.4,
+    notch: {
+      enabled: false,
+      widthMm: 12,
+      depthMm: 2,
+      clearanceMm: 0.25,
+      edgeOffsetMm: 10,
+      distribution: 'auto',
+      count: 2,
+      minSpacingMm: 16,
+    },
+  },
+  assembly: {
+    explodeDistanceMm: 0,
+  },
   mirror: false,
   splitByLetter: true,
   meshQuality: 'normal',
@@ -51,8 +107,8 @@ const defaultSpec: SignSpec = {
 
 const defaultVisibility: GeneratorVisibility = {
   body: true,
-  acrylic: true,
-  letters: true,
+  face: true,
+  insert: true,
 }
 
 interface SignStore {
@@ -70,7 +126,7 @@ interface SignStore {
   setActiveSource: (source: 'text' | 'svg') => void
   updateTextSource: (partial: Partial<TextSource>) => void
   updateSvgSource: (partial: Partial<SvgSource>) => void
-  updateSpec: (partial: Partial<SignSpec>) => void
+  updateSpec: (partial: DeepPartial<SignSpec>) => void
   updateVisibility: (partial: Partial<GeneratorVisibility>) => void
   setSelectedPresetId: (presetId: string | null) => void
   setShapeDocument: (document: ShapeDocument | null) => void
@@ -97,6 +153,41 @@ function getDefaultState() {
   }
 }
 
+function mergeSignSpec(base: SignSpec, partial?: DeepPartial<SignSpec>): SignSpec {
+  if (!partial) {
+    return base
+  }
+
+  return {
+    ...base,
+    ...partial,
+    outerWall: {
+      ...base.outerWall,
+      ...partial.outerWall,
+    },
+    innerWall: {
+      ...base.innerWall,
+      ...partial.innerWall,
+    },
+    face: {
+      ...base.face,
+      ...partial.face,
+    },
+    fitment: {
+      ...base.fitment,
+      ...partial.fitment,
+      notch: {
+        ...base.fitment.notch,
+        ...partial.fitment?.notch,
+      },
+    },
+    assembly: {
+      ...base.assembly,
+      ...partial.assembly,
+    },
+  }
+}
+
 function hasMeaningfulPersistedState(saved: Partial<SignStore>) {
   const defaultState = getDefaultState()
   const textSourceChanged =
@@ -112,10 +203,8 @@ function hasMeaningfulPersistedState(saved: Partial<SignStore>) {
     saved.svgSource?.physicalWidthMm !== undefined ||
     saved.svgSource?.physicalHeightMm !== undefined
 
-  const specChanged = Object.entries(defaultSpec).some(([key, value]) => {
-    return saved.spec?.[key as keyof SignSpec] !== undefined
-      && saved.spec?.[key as keyof SignSpec] !== value
-  })
+  const mergedSavedSpec = mergeSignSpec(defaultSpec, saved.spec)
+  const specChanged = JSON.stringify(mergedSavedSpec) !== JSON.stringify(defaultSpec)
 
   const visibilityChanged = Object.entries(defaultVisibility).some(([key, value]) => {
     return saved.visibility?.[key as keyof GeneratorVisibility] !== undefined
@@ -153,10 +242,7 @@ export const useSignStore = create<SignStore>()(
         })),
       updateSpec: (partial) =>
         set((state) => {
-          const parsed = signSpecSchema.parse({
-            ...state.spec,
-            ...partial,
-          })
+          const parsed = signSpecSchema.parse(mergeSignSpec(state.spec, partial))
           return { spec: parsed }
         }),
       updateVisibility: (partial) =>
@@ -224,10 +310,7 @@ export const useSignStore = create<SignStore>()(
             ...current.svgSource,
             ...saved.svgSource,
           },
-          spec: {
-            ...current.spec,
-            ...saved.spec,
-          },
+          spec: signSpecSchema.parse(mergeSignSpec(current.spec, saved.spec)),
           visibility: {
             ...current.visibility,
             ...saved.visibility,

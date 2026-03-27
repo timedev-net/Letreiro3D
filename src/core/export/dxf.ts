@@ -1,17 +1,17 @@
 import { saveAs } from 'file-saver'
-import type { DxfContour } from '../../types/sign'
+import type { DxfContour, PartRole } from '../../types/sign'
 
 function formatPoint(point: number[]) {
   const [x, y] = point
   return `10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}`
 }
 
-function loopToDxf(loop: number[][]) {
+function loopToDxf(loop: number[][], layer: string) {
   const lines = [
     '0',
     'LWPOLYLINE',
     '8',
-    'SIGN',
+    layer,
     '90',
     String(loop.length),
     '70',
@@ -27,7 +27,9 @@ function loopToDxf(loop: number[][]) {
 
 export function createDxfText(contours: DxfContour[]) {
   const entities = contours
-    .flatMap((contour) => contour.loops.map((loop) => loopToDxf(loop)))
+    .flatMap((contour) =>
+      contour.loops.map((loop) => loopToDxf(loop, contour.role.toUpperCase())),
+    )
     .join('\n')
 
   return [
@@ -47,6 +49,10 @@ export function createDxfText(contours: DxfContour[]) {
     '0',
     'EOF',
   ].join('\n')
+}
+
+export function getContoursByRole(contours: DxfContour[], role: PartRole) {
+  return contours.filter((contour) => contour.role === role)
 }
 
 export function downloadDxf(contours: DxfContour[], name: string) {

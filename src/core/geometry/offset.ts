@@ -2,6 +2,7 @@ import ClipperLib from 'clipper-lib'
 import { Shape, ShapeUtils, Vector2 } from 'three'
 
 const SCALE = 1000
+export type OffsetJoin = 'round' | 'miter' | 'square'
 
 function toClipperPath(points: Vector2[]) {
   return points.map((point) => ({
@@ -18,7 +19,33 @@ function area(points: Vector2[]) {
   return Math.abs(ShapeUtils.area(points))
 }
 
-export function offsetClosedPoints(points: Vector2[], deltaMm: number) {
+function ensureClockwise(points: Vector2[]) {
+  return ShapeUtils.isClockWise(points) ? points : [...points].reverse()
+}
+
+function ensureCounterClockwise(points: Vector2[]) {
+  return ShapeUtils.isClockWise(points) ? [...points].reverse() : points
+}
+
+function getJoinType(join: OffsetJoin) {
+  const joinType = ClipperLib.JoinType as unknown as {
+    jtRound: number
+    jtMiter: number
+    jtSquare: number
+  }
+
+  switch (join) {
+    case 'miter':
+      return joinType.jtMiter
+    case 'square':
+      return joinType.jtSquare
+    case 'round':
+    default:
+      return joinType.jtRound
+  }
+}
+
+export function offsetClosedPoints(points: Vector2[], deltaMm: number, join: OffsetJoin = 'round') {
   if (points.length < 3 || Math.abs(deltaMm) < 1e-6) {
     return points
   }
@@ -28,7 +55,7 @@ export function offsetClosedPoints(points: Vector2[], deltaMm: number) {
     const solution = new ClipperLib.Paths()
     offset.AddPath(
       toClipperPath(points),
-      ClipperLib.JoinType.jtRound,
+      getJoinType(join),
       ClipperLib.EndType.etClosedPolygon,
     )
     offset.Execute(solution, delta * SCALE)
@@ -57,12 +84,12 @@ export function offsetClosedPoints(points: Vector2[], deltaMm: number) {
 }
 
 export function createShapeFromContours(outer: Vector2[], holes: Vector2[][]) {
-  const shape = new Shape(outer)
+  const shape = new Shape(ensureClockwise(outer))
   shape.closePath()
   shape.holes = holes
     .filter((hole) => hole.length >= 3)
     .map((holePoints) => {
-      const hole = new Shape(holePoints)
+      const hole = new Shape(ensureCounterClockwise(holePoints))
       hole.closePath()
       return hole
     })

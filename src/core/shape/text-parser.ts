@@ -6,7 +6,6 @@ import { loadBuiltinFont, loadUploadedFont } from '../fonts/load-font'
 import {
   getShapeBounds,
   normalizeDocument,
-  pathToShapes,
   transformShapes,
 } from './shape-utils'
 
@@ -118,7 +117,7 @@ export async function createTextShapeDocument(source: TextSource): Promise<Shape
     glyphs.forEach((glyph, glyphIndex) => {
       const glyphPath = glyph.getPath(cursorX, cursorY, unitsPerEm)
       const shapePath = commandsToShapePath(glyphPath.commands as OpenTypeCommand[])
-      const shapes = pathToShapes(shapePath)
+      const shapes = shapePath.toShapes(false)
 
       if (shapes.length > 0) {
         groups.push({

@@ -5,6 +5,17 @@ export type FontKind = 'builtin' | 'uploaded'
 export type Alignment = 'left' | 'center' | 'right'
 export type UnitConfidence = 'high' | 'medium' | 'low'
 export type MeshQuality = 'draft' | 'normal' | 'high'
+export type PartRole = 'body' | 'face' | 'insert'
+export type NotchDistribution = 'auto' | 'manual-count'
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+export type LetterStyleId =
+  | 'face-acrilico-fundo-impresso'
+  | 'face-acrilico-fundo-vazado'
+  | 'face-acrilico-parede-interna-dupla'
+  | 'face-acrilico-back-fit'
 
 export interface TextSource {
   text: string
@@ -50,23 +61,70 @@ export interface ShapeDocumentMetadata {
   warnings: string[]
 }
 
-export interface SignSpec {
+export interface OuterWallSpec {
   baseDepthMm: number
-  wallHeightMm: number
-  wallThicknessMm: number
-  acrylicThicknessMm: number
+  heightMm: number
+  thicknessMm: number
+}
+
+export interface InnerWallSpec {
+  heightMm: number
+  thicknessMm: number
+}
+
+export interface FaceSpec {
+  thicknessMm: number
+}
+
+export interface NotchSpec {
+  enabled: boolean
+  widthMm: number
+  depthMm: number
   clearanceMm: number
+  edgeOffsetMm: number
+  distribution: NotchDistribution
+  count: number
+  minSpacingMm: number
+}
+
+export interface FitmentSpec {
+  clearanceMm: number
+  notch: NotchSpec
+}
+
+export interface AssemblySpec {
+  explodeDistanceMm: number
+}
+
+export interface SignSpec {
+  styleId: LetterStyleId
+  outerWall: OuterWallSpec
+  innerWall: InnerWallSpec
+  face: FaceSpec
+  fitment: FitmentSpec
+  assembly: AssemblySpec
   mirror: boolean
   splitByLetter: boolean
   meshQuality: MeshQuality
 }
 
+export interface GeneratedPart {
+  id: string
+  role: PartRole
+  label: string
+  geometry: BufferGeometry
+  exportName: string
+  visibleByDefault: boolean
+  assemblyOffset: [number, number, number]
+  letterId?: string
+  dxfLoops?: number[][][]
+}
+
 export interface GeneratedParts {
-  bodyGeometry: BufferGeometry | null
-  acrylicGeometry: BufferGeometry | null
-  letterGeometries: BufferGeometry[]
+  parts: GeneratedPart[]
   dxfContours: DxfContour[]
   metricsMm: { width: number; height: number; depth: number }
+  warnings: string[]
 }
 
 export interface ExportJob {
@@ -77,6 +135,7 @@ export interface ExportJob {
 
 export interface DxfContour {
   label: string
+  role: PartRole
   loops: number[][][]
 }
 
@@ -88,6 +147,6 @@ export interface BuiltinFont {
 
 export interface GeneratorVisibility {
   body: boolean
-  acrylic: boolean
-  letters: boolean
+  face: boolean
+  insert: boolean
 }
