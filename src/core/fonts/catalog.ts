@@ -2,6 +2,36 @@ import type { BuiltinFont } from '../../types/sign'
 
 export const builtinFonts: BuiltinFont[] = [
   {
+    id: 'altone-trial-regular',
+    label: 'Altone Trial Regular',
+    file: '/fonts/altone-trial-regular.ttf',
+  },
+  {
+    id: 'altone-trial-bold',
+    label: 'Altone Trial Bold',
+    file: '/fonts/altone-trial-bold.ttf',
+  },
+  {
+    id: 'altone-trial-oblique',
+    label: 'Altone Trial Oblique',
+    file: '/fonts/altone-trial-oblique.ttf',
+  },
+  {
+    id: 'altone-trial-bold-oblique',
+    label: 'Altone Trial Bold Oblique',
+    file: '/fonts/altone-trial-bold-oblique.ttf',
+  },
+  {
+    id: 'bookman-opti-bold',
+    label: 'Bookman Opti Bold',
+    file: '/fonts/bookman-opti-bold.otf',
+  },
+  {
+    id: 'bookman-opti-light',
+    label: 'Bookman Opti Light',
+    file: '/fonts/bookman-opti-light.otf',
+  },
+  {
     id: 'fira-sans-condensed-bold',
     label: 'Fira Sans Condensed Bold',
     file: '/fonts/fira-sans-condensed-bold.otf',

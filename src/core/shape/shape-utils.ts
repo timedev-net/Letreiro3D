@@ -5,7 +5,25 @@ const EPSILON = 1e-4
 const MIN_LOOP_AREA = 0.01
 
 export function pathToShapes(path: ShapePath) {
-  return path.toShapes(true)
+  let dominantLoopClockwise = false
+  let dominantLoopArea = 0
+
+  path.subPaths.forEach((subPath) => {
+    const points = dedupeLoop(subPath.getPoints())
+    if (points.length < 3) {
+      return
+    }
+
+    const nextArea = Math.abs(ShapeUtils.area(points))
+    if (nextArea <= dominantLoopArea) {
+      return
+    }
+
+    dominantLoopArea = nextArea
+    dominantLoopClockwise = ShapeUtils.isClockWise(points)
+  })
+
+  return path.toShapes(!dominantLoopClockwise)
 }
 
 export function getShapePoints(shape: Shape, curveSegments: number) {

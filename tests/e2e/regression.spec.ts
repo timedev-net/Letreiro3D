@@ -474,6 +474,199 @@ test('texto preserva fundo no traco e vazado nas contraformas', async ({ page })
   }
 })
 
+test('ui no modo texto preserva base no traco e deixa contraformas vazadas com a fonte padrao', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Ex.: LETRA 3D' }).fill('EABRD8')
+  await expect
+    .poll(async () => {
+      return page.evaluate(async () => {
+        const { useSignStore } = await import('/src/store/sign-store.ts')
+        const state = useSignStore.getState()
+        return {
+          text: state.textSource.text,
+          labels: state.shapeDocument?.groups.map((group) => group.label) ?? [],
+        }
+      })
+    })
+    .toEqual({
+      text: 'EABRD8',
+      labels: ['E', 'A', 'B', 'R', 'D', 'eight'],
+    })
+
+  await expect(page.getByText('Preview pronto')).toBeVisible()
+
+  const result = await page.evaluate(async () => {
+    const { useSignStore } = await import('/src/store/sign-store.ts')
+    const state = useSignStore.getState()
+    const generated = state.generatedParts
+    const document = state.shapeDocument
+    const spec = state.spec
+    const textSource = state.textSource
+
+    if (!generated || !document) {
+      throw new Error('Preview nao foi gerado no modo texto')
+    }
+
+    const sampleStep = 1.25
+
+    function pointInPolygon(
+      point: { x: number; y: number },
+      polygon: Array<{ x: number; y: number }>,
+    ) {
+      let inside = false
+
+      for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+        const currentPoint = polygon[index]
+        const previousPoint = polygon[previous]
+        const intersects =
+          (currentPoint.y > point.y) !== (previousPoint.y > point.y)
+          && point.x
+            < ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y))
+              / ((previousPoint.y - currentPoint.y) || 1e-9)
+              + currentPoint.x
+
+        if (intersects) {
+          inside = !inside
+        }
+      }
+
+      return inside
+    }
+
+    function pointInTriangle(
+      px: number,
+      py: number,
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      cx: number,
+      cy: number,
+    ) {
+      const v0x = cx - ax
+      const v0y = cy - ay
+      const v1x = bx - ax
+      const v1y = by - ay
+      const v2x = px - ax
+      const v2y = py - ay
+      const dot00 = v0x * v0x + v0y * v0y
+      const dot01 = v0x * v1x + v0y * v1y
+      const dot02 = v0x * v2x + v0y * v2y
+      const dot11 = v1x * v1x + v1y * v1y
+      const dot12 = v1x * v2x + v1y * v2y
+      const inverse = 1 / (dot00 * dot11 - dot01 * dot01)
+      const u = (dot11 * dot02 - dot01 * dot12) * inverse
+      const v = (dot00 * dot12 - dot01 * dot02) * inverse
+
+      return u >= -1e-6 && v >= -1e-6 && u + v <= 1 + 1e-6
+    }
+
+    function getTopTriangles(bodyPart: { geometry: { getAttribute: (name: string) => { array: ArrayLike<number> } } }) {
+      const positions = bodyPart.geometry.getAttribute('position').array
+      const triangles: number[][] = []
+
+      for (let index = 0; index < positions.length; index += 9) {
+        const z1 = positions[index + 2]
+        const z2 = positions[index + 5]
+        const z3 = positions[index + 8]
+        if (
+          Math.abs(z1 - spec.outerWall.baseDepthMm) < 1e-4
+          && Math.abs(z2 - spec.outerWall.baseDepthMm) < 1e-4
+          && Math.abs(z3 - spec.outerWall.baseDepthMm) < 1e-4
+        ) {
+          triangles.push([
+            positions[index],
+            positions[index + 1],
+            positions[index + 3],
+            positions[index + 4],
+            positions[index + 6],
+            positions[index + 7],
+          ])
+        }
+      }
+
+      return triangles
+    }
+
+    function analyzeGroup(group: (typeof document.groups)[number]) {
+      const bodyPart = generated.parts.find((part) => part.role === 'body' && part.letterId === group.id)
+      if (!bodyPart) {
+        throw new Error(`Corpo nao encontrado para ${group.label}`)
+      }
+
+      const shapes = group.shapes.map((shape) => ({
+        outer: shape.getPoints(18).map((point) => ({ x: point.x, y: point.y })),
+        holes: shape.holes.map((hole) => hole.getPoints(18).map((point) => ({ x: point.x, y: point.y }))),
+      }))
+      const triangles = getTopTriangles(bodyPart)
+      const holeLoopCount = shapes.reduce((sum, shape) => sum + shape.holes.length, 0)
+
+      let strokeCovered = 0
+      let strokeCount = 0
+      let holeCovered = 0
+      let holeCount = 0
+
+      for (let x = group.boundsMm.minX; x <= group.boundsMm.minX + group.boundsMm.width; x += sampleStep) {
+        for (let y = group.boundsMm.minY; y <= group.boundsMm.minY + group.boundsMm.height; y += sampleStep) {
+          const point = { x, y }
+          const inHole = shapes.some((shape) => shape.holes.some((hole) => pointInPolygon(point, hole)))
+          const inSolid = shapes.some(
+            (shape) => pointInPolygon(point, shape.outer) && !shape.holes.some((hole) => pointInPolygon(point, hole)),
+          )
+          const covered = triangles.some(([ax, ay, bx, by, cx, cy]) =>
+            pointInTriangle(x, y, ax, ay, bx, by, cx, cy),
+          )
+
+          if (inSolid) {
+            strokeCount += 1
+            if (covered) {
+              strokeCovered += 1
+            }
+          }
+
+          if (inHole) {
+            holeCount += 1
+            if (covered) {
+              holeCovered += 1
+            }
+          }
+        }
+      }
+
+      return {
+        label: group.label,
+        strokeRatio: strokeCount === 0 ? 0 : strokeCovered / strokeCount,
+        holeLoopCount,
+        holeCount,
+        holeCovered,
+      }
+    }
+
+    const textKeys = [...textSource.text.replace(/\r?\n/g, '')].map((character) =>
+      character === '8' ? 'eight' : character,
+    )
+
+    return {
+      fontId: textSource.fontId,
+      byLabel: Object.fromEntries(document.groups.map((group, index) => [
+        textKeys[index] ?? group.label,
+        analyzeGroup(group),
+      ])),
+    }
+  })
+
+  expect(result.fontId).toBe('altone-trial-regular')
+  expect(result.byLabel.E.strokeRatio).toBeGreaterThan(0.97)
+  expect(result.byLabel.E.holeCount).toBe(0)
+
+  for (const label of ['A', 'B', 'R', 'D', 'eight'] as const) {
+    expect(result.byLabel[label].strokeRatio).toBeGreaterThan(0.97)
+    expect(result.byLabel[label].holeLoopCount).toBeGreaterThan(0)
+    expect(result.byLabel[label].holeCount).toBeGreaterThan(0)
+    expect(result.byLabel[label].holeCovered).toBe(0)
+  }
+})
+
 test('texto com contraformas gera parede interna no lado do vazado em estilo simples', async ({ page }) => {
   const result = await analyzeInnerHoleWalls(page, innerHoleWallSpec, 1)
 

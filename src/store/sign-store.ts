@@ -58,7 +58,7 @@ const signSpecSchema = z.object({
 const defaultTextSource: TextSource = {
   text: 'LETRA 3D',
   fontKind: 'builtin',
-  fontId: 'fira-sans-condensed-bold',
+  fontId: 'altone-trial-regular',
   fontSizeMm: 120,
   letterSpacingMm: 6,
   alignment: 'center',
