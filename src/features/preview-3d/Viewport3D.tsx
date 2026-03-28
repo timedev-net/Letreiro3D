@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Bounds, Grid, OrbitControls, useBounds } from '@react-three/drei'
-import { Box3, BufferGeometry, Color, MeshStandardMaterial, Vector3 } from 'three'
+import {
+  Box3,
+  BufferGeometry,
+  Color,
+  MeshStandardMaterial,
+  Vector3,
+  type Mesh,
+} from 'three'
 import type { GeneratedPart } from '../../types/sign'
 import { useSignStore } from '../../store/sign-store'
 
@@ -65,6 +72,7 @@ function AutoFitOnSourceChange({
 }
 
 export function Viewport3D() {
+  const gridRef = useRef<Mesh>(null)
   const generatedParts = useSignStore((state) => state.generatedParts)
   const visibility = useSignStore((state) => state.visibility)
   const isBusy = useSignStore((state) => state.isBusy)
@@ -100,6 +108,15 @@ export function Viewport3D() {
   }, [spec.assembly.explodeDistanceMm, visibleParts])
 
   const hasGeometry = parts.length > 0
+
+  const gridHeight = useMemo(() => {
+    if (!hasGeometry || bounds.isEmpty()) {
+      return -0.8
+    }
+
+    const clearance = Math.max((bounds.max.z - bounds.min.z) * 0.02, 0.8)
+    return bounds.min.z - clearance
+  }, [bounds, hasGeometry])
 
   const sourceKey = useMemo(() => {
     if (activeSource === 'text') {
@@ -140,6 +157,17 @@ export function Viewport3D() {
     ] as const
   }, [shapeDocument, spec.mirror])
 
+  useEffect(() => {
+    const material = gridRef.current?.material
+    if (!material || Array.isArray(material)) {
+      return
+    }
+
+    material.depthTest = true
+    material.depthWrite = false
+    material.needsUpdate = true
+  }, [])
+
   return (
     <div className="relative h-full overflow-hidden rounded-[calc(var(--radius)+6px)] border border-[var(--border)] bg-[#050913]">
       <Canvas
@@ -151,17 +179,19 @@ export function Viewport3D() {
         <directionalLight position={[160, 220, 140]} intensity={2.4} />
         <directionalLight position={[-120, 80, -60]} intensity={0.9} color="#9bc0ff" />
         <Grid
+          ref={gridRef}
           args={[1400, 1400]}
           cellColor="#111d36"
           sectionColor="#27457e"
-          cellSize={8}
-          sectionSize={72}
-          cellThickness={0.38}
-          sectionThickness={1.25}
+          cellSize={6.5}
+          sectionSize={56}
+          cellThickness={0.34}
+          sectionThickness={1.15}
           fadeDistance={1800}
           fadeStrength={1.1}
           infiniteGrid
-          position={[0, 0, 0]}
+          position={[0, gridHeight, 0]}
+          renderOrder={10}
         />
         <Bounds margin={1.25}>
           <AutoFitOnSourceChange sourceKey={sourceKey} hasGeometry={hasGeometry} />
