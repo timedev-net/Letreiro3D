@@ -425,7 +425,9 @@ function buildInnerWallShapesForLoop(
       continue
     }
 
-    const shape = createRingShape(outer, inner)
+    const shape = kind === 'outer'
+      ? createRingShape(outer, inner)
+      : createRingShape(inner, outer)
     if (!shape) {
       warnings.push(
         `Parede interna omitida em ${groupLabel}: não foi possível gerar a seção interna com quinas vivas.`,
@@ -496,19 +498,17 @@ function createBodyGeometry(
           notchLoops.push(expandedHole)
         }
 
-        if (style.innerWallCount > 1) {
-          const innerHole = buildInnerWallShapesForLoop(
-            hole,
-            'hole',
-            spec,
-            style,
-            warnings,
-            group.label,
-            1,
-            false,
-          )
-          innerWallShapes.push(...innerHole.shapes)
-        }
+        const innerHole = buildInnerWallShapesForLoop(
+          hole,
+          'hole',
+          spec,
+          style,
+          warnings,
+          group.label,
+          0,
+          false,
+        )
+        innerWallShapes.push(...innerHole.shapes)
       } else {
         warnings.push(
           `Parede externa interna reduzida em ${group.label}: um vazado ficou pequeno demais para a espessura configurada.`,
