@@ -48,6 +48,8 @@ const innerHoleWallDoubleSpec = {
   styleId: 'face-acrilico-parede-interna-dupla',
 } as const
 
+const faceInsetMm = bodyRegressionSpec.outerWall.thicknessMm + bodyRegressionSpec.fitment.clearanceMm
+
 async function analyzeInnerHoleWalls(
   page: Page,
   spec: typeof innerHoleWallSpec,
@@ -499,6 +501,126 @@ test('texto com contraformas gera duas paredes internas no lado do vazado em est
     expect(entry?.bands[0].coverageRatio).toBeGreaterThan(0.7)
     expect(entry?.bands[1].sampleCount).toBeGreaterThan(0)
     expect(entry?.bands[1].coverageRatio).toBeGreaterThan(0.7)
+  }
+})
+
+test('face usa inset de encaixe no STL e no DXF para svg com contraforma', async ({ page }) => {
+  await page.goto('/')
+
+  const svgText = `
+    <svg width="100mm" height="100mm" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#111827" fill-rule="evenodd" d="M0 0H100V100H0Z M25 25H75V75H25Z" />
+    </svg>
+  `
+
+  const result = await page.evaluate(async ({ spec, svgText: sourceSvgText }) => {
+    const token = Date.now()
+    const root = window.location.origin
+    const { createSvgShapeDocument } = await import(`${root}/src/core/shape/svg-parser.ts?t=${token}`)
+    const { generateSignParts } = await import(`${root}/src/core/geometry/sign-generator.ts?t=${token}`)
+
+    const document = createSvgShapeDocument({
+      fileName: 'face-inset.svg',
+      svgText: sourceSvgText,
+      physicalWidthMm: 100,
+      physicalHeightMm: 100,
+      unitConfidence: 'high',
+    })
+    const generated = generateSignParts(document, spec)
+    const group = document.groups[0]
+    const facePart = generated.parts.find((part) => part.role === 'face' && part.letterId === group.id)
+    const faceContour = generated.dxfContours.find((contour) => contour.role === 'face' && contour.label.startsWith(group.label))
+
+    function getLoopBounds(loop: number[][]) {
+      return loop.reduce(
+        (bounds, [x, y]) => ({
+          minX: Math.min(bounds.minX, x),
+          maxX: Math.max(bounds.maxX, x),
+          minY: Math.min(bounds.minY, y),
+          maxY: Math.max(bounds.maxY, y),
+        }),
+        {
+          minX: Number.POSITIVE_INFINITY,
+          maxX: Number.NEGATIVE_INFINITY,
+          minY: Number.POSITIVE_INFINITY,
+          maxY: Number.NEGATIVE_INFINITY,
+        },
+      )
+    }
+
+    if (!facePart || !faceContour) {
+      return {
+        faceExists: false,
+        faceLoopCount: 0,
+      }
+    }
+
+    facePart.geometry.computeBoundingBox()
+    const boundingBox = facePart.geometry.boundingBox
+
+    return {
+      faceExists: true,
+      faceLoopCount: faceContour.loops.length,
+      outerBounds: getLoopBounds(faceContour.loops[0]),
+      holeBounds: getLoopBounds(faceContour.loops[1]),
+      geometryBounds: boundingBox
+        ? {
+            minX: boundingBox.min.x,
+            maxX: boundingBox.max.x,
+            minY: boundingBox.min.y,
+            maxY: boundingBox.max.y,
+          }
+        : null,
+    }
+  }, { spec: bodyRegressionSpec, svgText })
+
+  expect(result.faceExists).toBe(true)
+  expect(result.faceLoopCount).toBe(2)
+  expect(result.outerBounds.minX).toBeCloseTo(faceInsetMm, 3)
+  expect(result.outerBounds.maxX).toBeCloseTo(100 - faceInsetMm, 3)
+  expect(result.outerBounds.minY).toBeCloseTo(faceInsetMm, 3)
+  expect(result.outerBounds.maxY).toBeCloseTo(100 - faceInsetMm, 3)
+  expect(result.holeBounds.minX).toBeCloseTo(25 - faceInsetMm, 3)
+  expect(result.holeBounds.maxX).toBeCloseTo(75 + faceInsetMm, 3)
+  expect(result.holeBounds.minY).toBeCloseTo(25 - faceInsetMm, 3)
+  expect(result.holeBounds.maxY).toBeCloseTo(75 + faceInsetMm, 3)
+  expect(result.geometryBounds?.minX).toBeCloseTo(result.outerBounds.minX, 3)
+  expect(result.geometryBounds?.maxX).toBeCloseTo(result.outerBounds.maxX, 3)
+  expect(result.geometryBounds?.minY).toBeCloseTo(result.outerBounds.minY, 3)
+  expect(result.geometryBounds?.maxY).toBeCloseTo(result.outerBounds.maxY, 3)
+})
+
+test('texto com contraformas continua gerando faces após aplicar inset de encaixe', async ({ page }) => {
+  await page.goto('/')
+
+  const result = await page.evaluate(async (spec) => {
+    const token = Date.now()
+    const root = window.location.origin
+    const { createTextShapeDocument } = await import(`${root}/src/core/shape/text-parser.ts?t=${token}`)
+    const { generateSignParts } = await import(`${root}/src/core/geometry/sign-generator.ts?t=${token}`)
+
+    const document = await createTextShapeDocument({
+      text: 'EABRD8',
+      fontKind: 'builtin',
+      fontId: 'fira-sans-condensed-bold',
+      fontSizeMm: 120,
+      letterSpacingMm: 6,
+      alignment: 'center',
+    })
+    const generated = generateSignParts(document, spec)
+
+    return document.groups
+      .filter((group) => group.shapes.some((shape) => shape.holes.length > 0))
+      .map((group) => ({
+        label: group.label,
+        faceExists: generated.parts.some((part) => part.role === 'face' && part.letterId === group.id),
+      }))
+  }, bodyRegressionSpec)
+
+  for (const label of ['A', 'B', 'R', 'D', 'eight'] as const) {
+    const entry = result.find((item) => item.label === label)
+    expect(entry).toBeTruthy()
+    expect(entry?.faceExists).toBe(true)
   }
 })
 

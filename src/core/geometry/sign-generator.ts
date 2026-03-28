@@ -584,6 +584,50 @@ function getFaceZ(spec: SignSpec, style: StyleProfile) {
   return 0
 }
 
+function buildInsetFaceData(
+  group: ShapeGroup,
+  spec: SignSpec,
+  curveSegments: number,
+  warnings: string[],
+) {
+  const faceInsetMm = spec.outerWall.thicknessMm + spec.fitment.clearanceMm
+  const shapes: Shape[] = []
+  const dxfLoops: number[][][] = []
+
+  group.shapes.forEach((shape) => {
+    const { shapePoints, holePoints } = getShapePoints(shape, curveSegments)
+    const insetOuter = getOffsetLoop(shapePoints, -faceInsetMm)
+    const outerInsetFailed = faceInsetMm > 1e-6 && insetOuter === shapePoints
+
+    if (insetOuter.length < 3 || outerInsetFailed) {
+      warnings.push(
+        `Face omitida em ${group.label}: a folga configurada consumiu um contorno externo do encaixe.`,
+      )
+      return
+    }
+
+    const insetHoles = holePoints.flatMap((hole) => {
+      const expandedHole = getOffsetLoop(hole, faceInsetMm)
+      const holeInsetFailed = faceInsetMm > 1e-6 && expandedHole === hole
+
+      if (expandedHole.length < 3 || holeInsetFailed) {
+        warnings.push(
+          `Contraforma omitida na face de ${group.label}: a folga configurada expandiu demais um vazado.`,
+        )
+        return []
+      }
+
+      return [expandedHole]
+    })
+
+    const insetShape = createShapeFromContours(insetOuter, insetHoles)
+    shapes.push(insetShape)
+    dxfLoops.push(toLoop(insetOuter), ...insetHoles.map((hole) => toLoop(hole)))
+  })
+
+  return { shapes, dxfLoops }
+}
+
 function createFaceGeometry(
   group: ShapeGroup,
   spec: SignSpec,
@@ -592,7 +636,8 @@ function createFaceGeometry(
   warnings: string[],
   notchLoops: Vector2[][],
 ) {
-  const faceGeometry = createExtrudeGeometry(group.shapes, spec.face.thicknessMm, curveSegments)
+  const faceData = buildInsetFaceData(group, spec, curveSegments, warnings)
+  const faceGeometry = createExtrudeGeometry(faceData.shapes, spec.face.thicknessMm, curveSegments)
   if (!faceGeometry) {
     return null
   }
@@ -602,12 +647,12 @@ function createFaceGeometry(
 
   const hasInnerWall = spec.innerWall.thicknessMm > 0 && spec.innerWall.heightMm > 0
   if (!spec.fitment.notch.enabled || !hasInnerWall) {
-    return faceGeometry
+    return { geometry: faceGeometry, dxfLoops: faceData.dxfLoops }
   }
 
   const placements = resolveNotchPlacements(notchLoops, spec, warnings, group.label)
   if (!placements.length) {
-    return faceGeometry
+    return { geometry: faceGeometry, dxfLoops: faceData.dxfLoops }
   }
 
   const tabGeometry = createBoxPatternGeometry(
@@ -618,7 +663,10 @@ function createFaceGeometry(
     zBase,
   )
 
-  return unionGeometry(faceGeometry, tabGeometry)
+  return {
+    geometry: unionGeometry(faceGeometry, tabGeometry),
+    dxfLoops: faceData.dxfLoops,
+  }
 }
 
 function getAssemblyOffsetForRole(role: PartRole, style: StyleProfile, groupIndex: number) {
@@ -747,7 +795,7 @@ export function generateSignParts(document: ShapeDocument, spec: SignSpec): Gene
       )
     }
 
-    const faceGeometry = createFaceGeometry(
+    const face = createFaceGeometry(
       group,
       spec,
       style,
@@ -756,23 +804,15 @@ export function generateSignParts(document: ShapeDocument, spec: SignSpec): Gene
       body?.notchLoops ?? [],
     )
 
-    if (faceGeometry) {
-      const faceLoops = group.shapes.flatMap((shape) => {
-        const { shapePoints, holePoints } = getShapePoints(shape, curveSegments)
-        return [
-          toLoop(shapePoints),
-          ...holePoints.map((hole) => toLoop(hole)),
-        ]
-      })
-
+    if (face?.geometry) {
       nextParts.push(
         makePart(
           'face',
           group,
-          faceGeometry,
+          face.geometry,
           'face',
           getAssemblyOffsetForRole('face', style, groupIndex),
-          faceLoops,
+          face.dxfLoops,
         ),
       )
     }
