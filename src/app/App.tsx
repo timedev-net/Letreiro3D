@@ -86,8 +86,8 @@ export default function App() {
   ])
 
   return (
-    <main className="min-h-screen px-3 py-3 sm:px-4 md:px-5 xl:h-screen xl:overflow-hidden">
-      <div className="flex w-full flex-col gap-3 xl:h-full xl:min-h-0">
+    <main className="min-h-screen overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-4 md:px-5">
+      <div className="flex w-full flex-col gap-3">
         <header className="relative shrink-0 overflow-hidden rounded-[calc(var(--radius)+8px)] border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(135deg,rgba(10,17,31,0.98)_0%,rgba(19,31,53,0.96)_48%,rgba(74,37,14,0.94)_100%)] px-4 py-2 shadow-[var(--shadow-lg)] backdrop-blur sm:px-5 sm:py-4">
           <div className="pointer-events-none absolute inset-0">
             <img
@@ -116,7 +116,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="grid items-start gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(320px,23vw)_minmax(0,1fr)_minmax(360px,25vw)]">
+        <div className="grid items-start gap-3 xl:grid-cols-[minmax(320px,23vw)_minmax(0,1fr)_minmax(360px,25vw)]">
           
           <Card className="overflow-hidden xl:h-[min(90vh,calc(100vh-8.5rem))]">
             <div className="grid mt-8 gap-3 sm:grid-cols-2 sm:px-10 xl:px-16">
@@ -151,8 +151,8 @@ export default function App() {
             </div>
           </Card>
 
-          <div className="xl:min-h-0">
-            <Card className="h-[90vh] min-h-[620px] p-2 sm:p-3 xl:h-[min(90vh,calc(100vh-8.5rem))]">
+          <div className="xl:h-[min(90vh,calc(100vh-8.5rem))]">
+            <Card className="h-[90vh] min-h-[620px] p-2 sm:p-3 xl:h-full">
               <Viewport3D />
             </Card>
           </div>
