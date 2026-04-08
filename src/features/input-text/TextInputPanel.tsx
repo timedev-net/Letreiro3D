@@ -2,6 +2,7 @@ import { Upload } from 'lucide-react'
 import { builtinFonts } from '../../core/fonts/catalog'
 import { Button } from '../../components/ui/button'
 import { FieldLabel, NumberInput, Select, Textarea } from '../../components/ui/field'
+import { setClarityTag, trackClarityEvent } from '../../lib/clarity'
 import { useSignStore } from '../../store/sign-store'
 
 export function TextInputPanel() {
@@ -19,6 +20,8 @@ export function TextInputPanel() {
       uploadedFont: buffer,
       uploadedFontName: file.name,
     })
+    trackClarityEvent('text_font_uploaded')
+    setClarityTag('font_source', 'uploaded')
   }
 
   return (
@@ -123,7 +126,11 @@ export function TextInputPanel() {
         <Button
           className="w-full"
           variant="ghost"
-          onClick={() => updateTextSource({ fontKind: 'builtin', uploadedFont: undefined, uploadedFontName: undefined })}
+          onClick={() => {
+            updateTextSource({ fontKind: 'builtin', uploadedFont: undefined, uploadedFontName: undefined })
+            trackClarityEvent('text_font_reset_to_builtin')
+            setClarityTag('font_source', 'builtin')
+          }}
         >
           Voltar para fonte interna
         </Button>

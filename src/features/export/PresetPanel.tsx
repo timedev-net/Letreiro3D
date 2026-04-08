@@ -1,5 +1,6 @@
 import { WandSparkles } from 'lucide-react'
 import { signPresets } from '../../core/presets/sign-presets'
+import { setClarityTag, trackClarityEvent } from '../../lib/clarity'
 import { useSignStore } from '../../store/sign-store'
 
 export function PresetPanel() {
@@ -28,6 +29,11 @@ export function PresetPanel() {
               onClick={() => {
                 setSelectedPresetId(preset.id)
                 updateSpec(preset.spec)
+                trackClarityEvent('preset_selected')
+                setClarityTag('selected_preset', preset.id)
+                if (preset.spec.styleId) {
+                  setClarityTag('style_id', preset.spec.styleId)
+                }
               }}
             >
               <div className="text-sm font-semibold text-white">{preset.label}</div>

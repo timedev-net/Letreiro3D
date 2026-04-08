@@ -1,5 +1,6 @@
 import { AlertTriangle, DatabaseBackup, RefreshCcw, Ruler, ShieldAlert } from 'lucide-react'
 import { Button } from '../../components/ui/button'
+import { trackClarityEvent } from '../../lib/clarity'
 import { useSignStore } from '../../store/sign-store'
 
 export function ProjectStatusPanel() {
@@ -31,7 +32,14 @@ export function ProjectStatusPanel() {
             {metadata.sourceLabel} · {activeSource === 'svg' ? 'SVG' : 'Texto'}
           </p>
         </div>
-        <Button variant="ghost" className="px-3 py-2" onClick={() => resetProject()}>
+        <Button
+          variant="ghost"
+          className="px-3 py-2"
+          onClick={() => {
+            resetProject()
+            trackClarityEvent('project_reset')
+          }}
+        >
           <RefreshCcw className="h-4 w-4" />
           Resetar
         </Button>

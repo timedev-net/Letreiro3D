@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button'
 import { FieldLabel, NumberInput, Select } from '../../components/ui/field'
 import { downloadDxf, getContoursByRole } from '../../core/export/dxf'
 import { downloadPartRoleStl, downloadPartsZip } from '../../core/export/stl'
+import { trackClarityEvent } from '../../lib/clarity'
 import { round } from '../../lib/utils'
 import { useSignStore } from '../../store/sign-store'
 import type { DeepPartial, SignSpec } from '../../types/sign'
@@ -28,6 +29,31 @@ export function ExportPanel() {
   const updateCustomSpec = (partial: DeepPartial<SignSpec>) => {
     setSelectedPresetId(null)
     updateSpec(partial)
+  }
+
+  const handleExportZip = async () => {
+    await downloadPartsZip(parts, 'letreiro3d-pecas')
+    trackClarityEvent('export_zip_parts')
+  }
+
+  const handleExportBodyStl = () => {
+    downloadPartRoleStl(parts, 'body', 'letreiro-corpo.stl')
+    trackClarityEvent('export_stl_body')
+  }
+
+  const handleExportFaceStl = () => {
+    downloadPartRoleStl(parts, 'face', 'letreiro-face.stl')
+    trackClarityEvent('export_stl_face')
+  }
+
+  const handleExportBodyDxf = () => {
+    downloadDxf(getContoursByRole(generatedParts?.dxfContours ?? [], 'body'), 'letreiro-corpo.dxf')
+    trackClarityEvent('export_dxf_body')
+  }
+
+  const handleExportFaceDxf = () => {
+    downloadDxf(getContoursByRole(generatedParts?.dxfContours ?? [], 'face'), 'letreiro-face.dxf')
+    trackClarityEvent('export_dxf_face')
   }
 
   return (
@@ -473,35 +499,35 @@ export function ExportPanel() {
         <Button
           variant="primary"
           disabled={!hasGeometry}
-          onClick={() => void downloadPartsZip(parts, 'letreiro3d-pecas')}
+          onClick={() => void handleExportZip()}
         >
           <PackageOpen className="h-4 w-4" />
           Exportar ZIP das peças
         </Button>
         <Button
           disabled={!hasRole('body')}
-          onClick={() => downloadPartRoleStl(parts, 'body', 'letreiro-corpo.stl')}
+          onClick={handleExportBodyStl}
         >
           <Download className="h-4 w-4" />
           Exportar STL do corpo
         </Button>
         <Button
           disabled={!hasRole('face')}
-          onClick={() => downloadPartRoleStl(parts, 'face', 'letreiro-face.stl')}
+          onClick={handleExportFaceStl}
         >
           <PackageOpen className="h-4 w-4" />
           Exportar STL da face
         </Button>
         <Button
           disabled={!getContoursByRole(generatedParts?.dxfContours ?? [], 'body').length}
-          onClick={() => downloadDxf(getContoursByRole(generatedParts?.dxfContours ?? [], 'body'), 'letreiro-corpo.dxf')}
+          onClick={handleExportBodyDxf}
         >
           <Download className="h-4 w-4" />
           Exportar DXF do corpo
         </Button>
         <Button
           disabled={!getContoursByRole(generatedParts?.dxfContours ?? [], 'face').length}
-          onClick={() => downloadDxf(getContoursByRole(generatedParts?.dxfContours ?? [], 'face'), 'letreiro-face.dxf')}
+          onClick={handleExportFaceDxf}
         >
           <Download className="h-4 w-4" />
           Exportar DXF da face

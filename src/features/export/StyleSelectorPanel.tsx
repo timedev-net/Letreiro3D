@@ -1,5 +1,6 @@
 import { Layers3 } from 'lucide-react'
 import { letterStyles } from '../../core/styles/letter-styles'
+import { setClarityTag, trackClarityEvent } from '../../lib/clarity'
 import { useSignStore } from '../../store/sign-store'
 
 export function StyleSelectorPanel() {
@@ -28,6 +29,9 @@ export function StyleSelectorPanel() {
               onClick={() => {
                 setSelectedPresetId(null)
                 updateSpec({ styleId: style.id })
+                trackClarityEvent('style_selected')
+                setClarityTag('style_id', style.id)
+                setClarityTag('selected_preset', 'custom')
               }}
             >
               <div className="text-sm font-semibold text-white">{style.label}</div>

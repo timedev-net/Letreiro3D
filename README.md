@@ -44,6 +44,17 @@ pnpm build
 pnpm preview
 ```
 
+## Publicar no GitHub Pages
+
+O projeto já está preparado para deploy no `GitHub Pages` via `GitHub Actions`.
+
+1. Faça push da branch `main` para o repositório no GitHub.
+2. No repositório, abra `Settings > Pages`.
+3. Em `Source`, escolha `GitHub Actions`.
+4. O workflow [`.github/workflows/deploy-pages.yml`](/home/frota/Documentos/OpenScad/.github/workflows/deploy-pages.yml) fará o build e a publicação automaticamente a cada push na `main`.
+
+Como o repositório remoto é `timedev-net/Letreiro3D`, o `Vite` detecta isso no ambiente do GitHub e gera os arquivos com a base correta para `https://timedev-net.github.io/Letreiro3D/`.
+
 ## Scripts disponíveis
 
 - `pnpm dev`: inicia o ambiente de desenvolvimento

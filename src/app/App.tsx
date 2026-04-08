@@ -11,6 +11,8 @@ import { TextInputPanel } from '../features/input-text/TextInputPanel'
 import { SvgInputPanel } from '../features/input-svg/SvgInputPanel'
 import { ExportPanel } from '../features/export/ExportPanel'
 import { Viewport3D } from '../features/preview-3d/Viewport3D'
+import { withBase } from '../lib/base-path'
+import { setClarityTag, trackClarityEvent } from '../lib/clarity'
 import { useSignStore } from '../store/sign-store'
 
 export default function App() {
@@ -18,6 +20,7 @@ export default function App() {
   const textSource = useSignStore((state) => state.textSource)
   const svgSource = useSignStore((state) => state.svgSource)
   const spec = useSignStore((state) => state.spec)
+  const selectedPresetId = useSignStore((state) => state.selectedPresetId)
   const setActiveSource = useSignStore((state) => state.setActiveSource)
   const setShapeDocument = useSignStore((state) => state.setShapeDocument)
   const setGeneratedParts = useSignStore((state) => state.setGeneratedParts)
@@ -85,13 +88,30 @@ export default function App() {
     setShapeDocument,
   ])
 
+  useEffect(() => {
+    setClarityTag('input_mode', activeSource)
+  }, [activeSource])
+
+  useEffect(() => {
+    setClarityTag('style_id', spec.styleId)
+  }, [spec.styleId])
+
+  useEffect(() => {
+    setClarityTag('selected_preset', selectedPresetId ?? 'custom')
+  }, [selectedPresetId])
+
+  function handleSourceChange(source: 'text' | 'svg') {
+    setActiveSource(source)
+    trackClarityEvent(source === 'text' ? 'input_mode_text_selected' : 'input_mode_svg_selected')
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-4 md:px-5">
       <div className="flex w-full flex-col gap-3">
         <header className="relative shrink-0 overflow-hidden rounded-[calc(var(--radius)+8px)] border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(135deg,rgba(10,17,31,0.98)_0%,rgba(19,31,53,0.96)_48%,rgba(74,37,14,0.94)_100%)] px-4 py-2 shadow-[var(--shadow-lg)] backdrop-blur sm:px-5 sm:py-4">
           <div className="pointer-events-none absolute inset-0">
             <img
-              src="/images/header-neon-theater.jpg"
+              src={withBase('/images/header-neon-theater.jpg')}
               alt=""
               className="absolute inset-0 h-full w-full object-cover opacity-[0.14] mix-blend-screen"
             />
@@ -123,7 +143,7 @@ export default function App() {
                 <Button
                   variant={activeSource === 'text' ? 'primary' : 'secondary'}
                   className="h-11 border-white/10 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
-                  onClick={() => setActiveSource('text')}
+                  onClick={() => handleSourceChange('text')}
                 >
                   <Type className="h-4 w-4" />
                   Modo texto
@@ -131,7 +151,7 @@ export default function App() {
                 <Button
                   variant={activeSource === 'svg' ? 'primary' : 'secondary'}
                   className="h-11 border-white/10 shadow-[0_12px_30px_rgba(0,0,0,0.2)]"
-                  onClick={() => setActiveSource('svg')}
+                  onClick={() => handleSourceChange('svg')}
                 >
                   <FileType2 className="h-4 w-4" />
                   Modo SVG

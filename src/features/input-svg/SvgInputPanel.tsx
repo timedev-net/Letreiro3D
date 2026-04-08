@@ -1,6 +1,8 @@
 import { FileUp, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { FieldLabel, NumberInput, Textarea } from '../../components/ui/field'
+import { withBase } from '../../lib/base-path'
+import { trackClarityEvent } from '../../lib/clarity'
 import { useSignStore } from '../../store/sign-store'
 
 export function SvgInputPanel() {
@@ -18,12 +20,14 @@ export function SvgInputPanel() {
       fileName: file.name,
       svgText: text,
     })
+    trackClarityEvent('svg_uploaded')
   }
 
   async function onExampleLoad() {
-    const response = await fetch('/examples/example-sign.svg')
+    const response = await fetch(withBase('/examples/example-sign.svg'))
     const text = await response.text()
     loadExampleSvg(text)
+    trackClarityEvent('svg_example_loaded')
   }
 
   return (
